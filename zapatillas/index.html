@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Paso Firme · Zapatillas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800;900&display=swap">
+<link rel="stylesheet" href="estilos.css"></head><body>
+<header>
+ <span class="logo">Paso Firme</span>
+ <button class="btn pts" id="btnAcc">Crear cuenta</button>
+ <button class="btn p" id="btnCart">Carrito (0)</button>
+</header>
+
+<div class="hero">
+ <div>
+  <h1>Elige tu par.<br>Elige tu color.</h1>
+  <p>Zapatillas de las mejores marcas, con envío a toda España. Cada compra suma puntos que se descuentan en la siguiente.</p>
+  <div class="sw" id="heroSw" role="group" aria-label="Color de la zapatilla"></div>
+  <a href="#tienda" class="btn p" style="text-decoration:none;display:inline-block">Ver zapatillas</a>
+ </div>
+ <div class="stage" id="stage"></div>
+</div>
+
+<section id="tienda">
+ <h2>Zapatillas</h2>
+ <div class="bar" id="brands" role="group" aria-label="Filtrar por marca"></div>
+ <div class="grid" id="grid"></div>
+</section>
+
+<section>
+ <h2>Cómo funcionan los puntos</h2>
+ <div class="how">
+  <div><b>Compra sin cuenta</b>Puedes pagar como invitado. Una cuenta es opcional.</div>
+  <div><b>1 € = 1 punto</b>Con una cuenta, cada euro que gastas suma un punto.</div>
+  <div><b>100 puntos = 5 € de descuento</b>Canjéalos en el carrito cuando quieras.</div>
+ </div>
+</section>
+<footer>Tienda de demostración: los pagos y las cuentas son simulados y se guardan solo en este navegador. Las marcas son ficticias.</footer>
+
+<dialog id="dProd"></dialog>
+<dialog id="dCart"></dialog>
+<dialog id="dAcc"></dialog>
+
+<script src="app.js"></script></body></html>
