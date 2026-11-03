@@ -1,7 +1,8 @@
 const COLORS={Cobalto:'#2B3CFF',Coral:'#FF6B5B',Menta:'#2FBF9B',Negro:'#1b1f2a',Arena:'#D9C7A3'};
-const BRANDS=['Vento','Kora','Atlas','Nimbo'];
+let BRANDS=['Vento','Kora','Atlas','Nimbo'];
 const SIZES=[38,39,40,41,42,43,44,45];
-const P=[
+// Productos de respaldo: se usan solo si Supabase no responde
+let P=[
  {id:1,b:'Vento',n:'Aero Run',p:89,c:['Cobalto','Coral','Negro'],d:'Running ligera con amortiguación suave.'},
  {id:2,b:'Vento',n:'Street 90',p:74,c:['Arena','Negro'],d:'Estilo retro para el día a día.'},
  {id:3,b:'Kora',n:'Trail X',p:119,c:['Menta','Negro','Coral'],d:'Suela de tacos para montaña y tierra.'},
@@ -131,3 +132,20 @@ $('#dAcc').onclick=e=>{
  }
 };
 renderHero();renderBrands();renderGrid();updateTop();
+
+// ---- Supabase: productos desde la base de datos ----
+const SUPA_URL='https://thfpbdgjzsqrhaogvosk.supabase.co';
+const SUPA_KEY='sb_publishable_jonPuGcwgnkbxEgWeaSAQg_hYGTlgAb'; // clave pública (segura para el navegador)
+async function loadProducts(){
+ try{
+  const r=await fetch(SUPA_URL+'/rest/v1/products?select=*&active=eq.true&order=id',{headers:{apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY}});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const rows=await r.json();
+  if(!rows.length)return;
+  P=rows.map(x=>({id:x.id,b:x.brand,n:x.name,p:Number(x.price),c:x.colors,d:x.description||'',img:x.image_url}));
+  BRANDS=[...new Set(P.map(x=>x.b))];
+  cart=cart.filter(i=>P.find(p=>p.id===i.id));saveCart();
+  if(!BRANDS.includes(brand)&&brand!=='Todas')brand='Todas';
+ }catch(e){console.warn('Usando productos de respaldo:',e.message)}
+}
+loadProducts().then(()=>{renderBrands();renderGrid();updateTop()});
