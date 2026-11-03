@@ -44,3 +44,6 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--l
 .msg{color:var(--mut);font-size:14px;min-height:20px}
 @media (max-width:760px){.hero{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:no-preference){.stage svg .up{transition:fill .35s}}
+img{max-width:100%;display:block}
+.card img,dialog>img{width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--bg);border-radius:14px}
+.item img{width:84px;height:63px;object-fit:cover;border-radius:10px}

@@ -15,6 +15,8 @@ let P=[
 const $=s=>document.querySelector(s);
 const eur=n=>n.toFixed(2).replace('.',',')+' €';
 function shoe(col){return `<svg viewBox="0 0 300 150" role="img" aria-label="Zapatilla"><path d="M18 112Q18 130 40 130H262Q286 130 286 108V98H18Z" fill="#fff" stroke="#101828" stroke-width="3"/><path class="up" d="M24 98V70Q24 56 40 52L80 46Q96 44 106 30L122 18Q134 12 142 24L150 40Q160 52 180 58L246 72Q282 80 286 98Z" fill="${col}" stroke="#101828" stroke-width="3"/><path d="M60 96Q120 66 206 90" stroke="#fff" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M122 30l16 10M132 22l16 12M142 40l16 8" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>`}
+// Foto real si el producto tiene image_url; si no, el dibujo
+function pic(x,col){return x.img?`<img src="${x.img}" alt="${x.b} ${x.n}" loading="lazy">`:shoe(COLORS[col])}
 // estado
 let user=null,cart=[],brand='Todas',sort='n',heroCol='Cobalto';
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
@@ -40,7 +42,7 @@ $('#brands').onchange=e=>{if(e.target.id==='sort'){sort=e.target.value;renderGri
 function renderGrid(){
  let l=P.filter(x=>brand==='Todas'||x.b===brand);
  l.sort((a,b)=>sort==='a'?a.p-b.p:sort==='d'?b.p-a.p:a.n.localeCompare(b.n));
- $('#grid').innerHTML=l.map(x=>`<button class="card" data-id="${x.id}">${shoe(COLORS[x.c[0]])}<small>${x.b}</small><div class="row"><b>${x.n}</b><span>${eur(x.p)}</span></div><small>${x.c.length} colores</small></button>`).join('');
+ $('#grid').innerHTML=l.map(x=>`<button class="card" data-id="${x.id}">${pic(x,x.c[0])}<small>${x.b}</small><div class="row"><b>${x.n}</b><span>${eur(x.p)}</span></div><small>${x.c.length} colores</small></button>`).join('');
 }
 $('#grid').onclick=e=>{const c=e.target.closest('.card');if(c)openProd(+c.dataset.id)};
 
@@ -51,7 +53,7 @@ function openProd(id){
 function drawProd(){
  const x=P.find(p=>p.id===sel.id);
  $('#dProd').innerHTML=`<div class="row"><b>${x.b}</b><button class="btn" data-close>Cerrar</button></div>
- <h2 style="margin:8px 0">${x.n}</h2>${shoe(COLORS[sel.c])}
+ <h2 style="margin:8px 0">${x.n}</h2>${pic(x,sel.c)}
  <p>${x.d}</p><b>Color: ${sel.c}</b>
  <div class="sw">${x.c.map(c=>`<button data-pc="${c}" style="background:${COLORS[c]}" aria-label="${c}" aria-pressed="${c===sel.c}"></button>`).join('')}</div>
  <b>Talla (EU)</b><div class="sizes">${SIZES.map(s=>`<button class="chip" data-s="${s}" aria-pressed="${s===sel.s}">${s}</button>`).join('')}</div>
@@ -76,7 +78,7 @@ function discount(){return user&&useP?Math.min(Math.floor(user.points/100)*5,Mat
 function openCart(){drawCart();$('#dCart').showModal()}
 function drawCart(msg=''){
  const t=total(),d=discount();
- const items=cart.length?cart.map((i,k)=>{const x=P.find(p=>p.id===i.id);return `<div class="item">${shoe(COLORS[i.c])}<div><b>${x.b} ${x.n}</b><br><small>${i.c} · talla ${i.s} · ${eur(x.p)}</small></div><button class="chip" data-m="${k}" aria-label="Quitar uno">−</button><b>${i.q}</b><button class="chip" data-a="${k}" aria-label="Añadir uno">+</button></div>`}).join(''):'<p>Tu carrito está vacío. Elige unas zapatillas para empezar.</p>';
+ const items=cart.length?cart.map((i,k)=>{const x=P.find(p=>p.id===i.id);return `<div class="item">${pic(x,i.c)}<div><b>${x.b} ${x.n}</b><br><small>${i.c} · talla ${i.s} · ${eur(x.p)}</small></div><button class="chip" data-m="${k}" aria-label="Quitar uno">−</button><b>${i.q}</b><button class="chip" data-a="${k}" aria-label="Añadir uno">+</button></div>`}).join(''):'<p>Tu carrito está vacío. Elige unas zapatillas para empezar.</p>';
  const canP=user&&user.points>=100;
  $('#dCart').innerHTML=`<div class="row"><h2 style="margin:0">Tu carrito</h2><button class="btn" data-close>Cerrar</button></div>${items}
  ${cart.length?`<p>${user?(canP?`<label style="font-weight:400"><input type="checkbox" id="usePts" ${useP?'checked':''} style="width:auto"> Usar mis puntos (${user.points} disponibles, −${Math.floor(user.points/100)*5} €)</label>`:`Tienes ${user.points} puntos. Con 100 puedes canjear 5 €.`):'Con una cuenta ganarías '+Math.floor(t)+' puntos con esta compra.'}</p>
