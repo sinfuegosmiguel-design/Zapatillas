@@ -20,10 +20,8 @@ function pic(x,col){return x.img?`<img src="${x.img}" alt="${x.b} ${x.n}" loadin
 // estado
 let user=null,cart=[],brand='Todas',sort='n',heroCol='Cobalto';
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-let users=store.get('pf_users',{}),session=store.get('pf_session',null);
-if(session&&users[session])user=users[session];
+let session=store.get('pf_auth',null);
 cart=store.get('pf_cart',[]);
-const saveUsers=()=>store.set('pf_users',users);
 const saveCart=()=>store.set('pf_cart',cart);
 
 function renderHero(){
@@ -74,7 +72,7 @@ $('#dProd').onclick=e=>{
 
 let useP=false;
 const total=()=>cart.reduce((a,i)=>a+P.find(p=>p.id===i.id).p*i.q,0);
-function discount(){return user&&useP?Math.min(Math.floor(user.points/100)*5,Math.floor(total())):0}
+function discount(){return user&&useP?Math.min(Math.floor(user.points/100),Math.floor(total()/5))*5:0}
 function openCart(){drawCart();$('#dCart').showModal()}
 function drawCart(msg=''){
  const t=total(),d=discount();
@@ -85,16 +83,22 @@ function drawCart(msg=''){
  <div class="row"><b style="font-size:24px">Total ${eur(t-d)}</b><button class="btn p" id="pay">Pagar ahora</button></div>`:''}
  <div class="msg">${msg}</div>`;
 }
-$('#dCart').onclick=e=>{
+$('#dCart').onclick=async e=>{
  const t=e.target;
  if(t.dataset.close!==undefined)$('#dCart').close();
  if(t.dataset.a){cart[+t.dataset.a].q++;saveCart();updateTop();drawCart()}
  if(t.dataset.m){const i=cart[+t.dataset.m];if(--i.q<=0)cart.splice(+t.dataset.m,1);saveCart();updateTop();drawCart()}
  if(t.id==='usePts'){useP=t.checked;drawCart()}
  if(t.id==='pay'){
-  const paid=total()-discount();let m='¡Pedido confirmado! Recibirás un correo con el seguimiento.';
-  if(user){const used=useP?Math.floor(discount()/5)*100:0;user.points=user.points-used+Math.floor(paid);users[user.email]=user;saveUsers();m+=` Ganaste ${Math.floor(paid)} puntos. Saldo: ${user.points}.`}
-  cart=[];useP=false;saveCart();updateTop();drawCart(m);
+  t.disabled=true;
+  try{
+   const tk=await token();
+   const items=cart.map(i=>({id:i.id,q:i.q,c:i.c,s:i.s}));
+   const r=await api('/rest/v1/rpc/checkout',{method:'POST',headers:H(tk),body:JSON.stringify({items,use_points:!!(user&&useP)})});
+   let m='¡Pedido confirmado! Recibirás un correo con el seguimiento.';
+   if(user){user.points=r.points;m+=` Ganaste ${r.earned} puntos. Saldo: ${r.points}.`}
+   cart=[];useP=false;saveCart();updateTop();drawCart(m);
+  }catch(err){drawCart('No se pudo completar el pedido: '+err.message)}
  }
 };
 
@@ -113,24 +117,22 @@ function drawAcc(msg=''){
  <p class="msg">${msg}</p><div class="row"><button class="btn" id="sw">${mode==='reg'?'Ya tengo cuenta':'Quiero registrarme'}</button><button class="btn p" id="go">${mode==='reg'?'Crear cuenta':'Entrar'}</button></div>`;
 }
 $('#btnAcc').onclick=()=>{drawAcc();$('#dAcc').showModal()};
-$('#dAcc').onclick=e=>{
+$('#dAcc').onclick=async e=>{
  const t=e.target;
  if(t.dataset.close!==undefined)$('#dAcc').close();
  if(t.id==='sw'){mode=mode==='reg'?'login':'reg';drawAcc()}
- if(t.id==='out'){user=null;store.set('pf_session',null);useP=false;updateTop();drawAcc()}
+ if(t.id==='out'){user=null;saveSession(null);useP=false;updateTop();drawAcc()}
  if(t.id==='go'){
   const em=$('#fe').value.trim().toLowerCase(),pw=$('#fp').value,nm=mode==='reg'?$('#fn').value.trim():'';
   if(!/^\S+@\S+\.\S+$/.test(em))return drawAcc('Escribe un correo válido.');
   if(pw.length<6)return drawAcc('La contraseña necesita al menos 6 caracteres.');
-  if(mode==='reg'){
-   if(!nm)return drawAcc('Escribe tu nombre.');
-   if(users[em])return drawAcc('Ese correo ya tiene cuenta. Inicia sesión.');
-   users[em]={name:nm,email:em,pw:btoa(pw),points:50};saveUsers();user=users[em];
-  }else{
-   if(!users[em]||users[em].pw!==btoa(pw))return drawAcc('Correo o contraseña incorrectos.');
-   user=users[em];
-  }
-  store.set('pf_session',em);updateTop();drawAcc();
+  if(mode==='reg'&&!nm)return drawAcc('Escribe tu nombre.');
+  t.disabled=true;
+  try{
+   const ok=await authCall(mode,em,pw,nm);
+   if(!ok){mode='login';return drawAcc('Cuenta creada. Confirma tu correo y luego inicia sesión.')}
+   updateTop();drawAcc();
+  }catch(err){drawAcc(es(err.message))}
  }
 };
 renderHero();renderBrands();renderGrid();updateTop();
@@ -151,3 +153,46 @@ async function loadProducts(){
  }catch(e){console.warn('Usando productos de respaldo:',e.message)}
 }
 loadProducts().then(()=>{renderBrands();renderGrid();updateTop()});
+
+// ---- Supabase Auth y puntos (cuentas reales) ----
+const H=tk=>({apikey:SUPA_KEY,'Content-Type':'application/json',Authorization:'Bearer '+(tk||SUPA_KEY)});
+async function api(path,opts={}){
+ const r=await fetch(SUPA_URL+path,opts);
+ const j=await r.json().catch(()=>({}));
+ if(!r.ok)throw new Error(j.msg||j.error_description||j.message||j.error||('HTTP '+r.status));
+ return j;
+}
+function es(m){
+ if(/already registered/i.test(m))return 'Ese correo ya tiene cuenta. Inicia sesión.';
+ if(/invalid login/i.test(m))return 'Correo o contraseña incorrectos.';
+ if(/rate limit/i.test(m))return 'Demasiados intentos. Espera unos minutos.';
+ return m;
+}
+function saveSession(x){session=x;store.set('pf_auth',x)}
+function mkSession(j,email){return{access:j.access_token,refresh:j.refresh_token,exp:Date.now()+j.expires_in*1000-60000,email}}
+async function authCall(kind,email,pw,name){
+ const path=kind==='reg'?'/auth/v1/signup':'/auth/v1/token?grant_type=password';
+ const body=kind==='reg'?{email,password:pw,data:{name}}:{email,password:pw};
+ const j=await api(path,{method:'POST',headers:H(),body:JSON.stringify(body)});
+ if(!j.access_token)return false;
+ saveSession(mkSession(j,email));
+ await loadUser();
+ return true;
+}
+async function token(){
+ if(!session)return null;
+ if(Date.now()>session.exp){
+  try{
+   const j=await api('/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:H(),body:JSON.stringify({refresh_token:session.refresh})});
+   saveSession(mkSession(j,session.email));
+  }catch(e){saveSession(null);user=null;return null}
+ }
+ return session.access;
+}
+async function loadUser(){
+ const tk=await token();
+ if(!tk){user=null;return}
+ const rows=await api('/rest/v1/profiles?select=name,points',{headers:H(tk)});
+ user=rows[0]?{name:rows[0].name||session.email,email:session.email,points:rows[0].points}:null;
+}
+loadUser().then(updateTop).catch(()=>{});
